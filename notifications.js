@@ -1,11 +1,7 @@
 const express = require('express');
 const nodemailer = require('nodemailer');
-const { createClient } = require('@supabase/supabase-js');
 const router = express.Router();
-
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
+const { getDb } = require('./db');
 
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
@@ -48,10 +44,13 @@ router.post('/email', async (req, res) => {
     });
 
     // Store notification in database
-    await supabase.from('notifications').insert({
+    const db = await getDb();
+    await db.collection('notifications').insertOne({
       booking_id: bookingId,
       title: 'Email Confirmation Sent',
-      description: `Confirmation email sent to ${to} for booking ${bookingId}`
+      description: `Confirmation email sent to ${to} for booking ${bookingId}`,
+      is_read: false,
+      notification_time: new Date().toISOString()
     });
 
     res.json({ success: true });
@@ -72,16 +71,21 @@ router.post('/whatsapp', async (req, res) => {
   try {
     const client = require('twilio')(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 
+    const cleanPhone = String(phone || '').replace(/\s+/g, '');
+
     const message = await client.messages.create({
       from: `whatsapp:${process.env.TWILIO_WHATSAPP_NUMBER}`,
-      to: `whatsapp:${phone}`,
+      to: `whatsapp:${cleanPhone}`,
       body: `🙏 Namaste ${name}! Your Seva booking is confirmed.\n\nBooking ID: ${bookingId}\nSeva: ${sevaName}\nDate: ${date}\nTime: ${time}\n\nPlease show this message at the temple gate. Sri Sidhivinayak Mandir.`
     });
 
-    await supabase.from('notifications').insert({
+    const db = await getDb();
+    await db.collection('notifications').insertOne({
       booking_id: bookingId,
       title: 'WhatsApp Confirmation Sent',
-      description: `WhatsApp confirmation sent to ${phone} for booking ${bookingId}`
+      description: `WhatsApp confirmation sent to ${phone} for booking ${bookingId}`,
+      is_read: false,
+      notification_time: new Date().toISOString()
     });
 
     res.json({ success: true, sid: message.sid });
