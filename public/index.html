@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SevaBook - Modern Temple Seva & Booking Management System</title>
+  <meta name="description" content="Book Seva, VIP Darshan, Havans, and festival offerings. Simple, modern, and accessible.">
+  <link rel="stylesheet" href="styles.css">
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+
+  <!-- Navigation Bar -->
+  <header>
+    <div class="navbar">
+      <div class="nav-brand" id="brand-home">
+        <i data-lucide="flower-2"></i>
+        <span>SevaBook</span>
+      </div>
+      
+      <!-- Primary Nav Tabs -->
+      <nav class="nav-links">
+        <div class="nav-link active" data-target="customer-booking-flow">
+          <i data-lucide="calendar-plus"></i> Book Seva
+        </div>
+        <div class="nav-link" data-target="customer-dashboard">
+          <i data-lucide="user"></i> Devotee Dashboard
+        </div>
+        <div class="nav-link" data-target="admin-dashboard">
+          <i data-lucide="shield-check"></i> Admin Portal
+        </div>
+      </nav>
+
+      <!-- Accessibility Tool & Mobile Button -->
+      <div class="nav-actions">
+        <div class="accessibility-switch" id="accessibility-toggle" title="Toggle large text and high contrast mode">
+          <span>Elderly Mode</span>
+          <div class="switch-track">
+            <div class="switch-thumb"></div>
+          </div>
+        </div>
+        <button class="mobile-nav-toggle" id="mobile-menu-btn" aria-label="Open menu">
+          <i data-lucide="menu"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Mobile Dropdown Menu -->
+  <div id="mobile-nav-menu" style="display: none; background: var(--bg-card); border-bottom: 1px solid var(--border-color); padding: 1rem 1.5rem; display: flex; flex-direction: column; gap: 0.75rem;">
+    <div class="nav-link active" data-target="customer-booking-flow">
+      <i data-lucide="calendar-plus"></i> Book Seva
+    </div>
+    <div class="nav-link" data-target="customer-dashboard">
+      <i data-lucide="user"></i> Devotee Dashboard
+    </div>
+    <div class="nav-link" data-target="admin-dashboard">
+      <i data-lucide="shield-check"></i> Admin Portal
+    </div>
+  </div>
+
+  <!-- Main Viewport -->
+  <main>
+
+    <!-- ======================================================================
+         1. CUSTOMER BOOKING FLOW VIEW
+         ====================================================================== -->
+    <section id="customer-booking-flow" class="view-section active">
+      
+      <!-- Step Progress Wizard -->
+      <div class="wizard-progress">
+        <div class="wizard-step active" data-step="1">
+          <div class="wizard-step-circle">1</div>
+          <div class="wizard-step-label">Select Seva</div>
+        </div>
+        <div class="wizard-step" data-step="2">
+          <div class="wizard-step-circle">2</div>
+          <div class="wizard-step-label">Date & Time</div>
+        </div>
+        <div class="wizard-step" data-step="3">
+          <div class="wizard-step-circle">3</div>
+          <div class="wizard-step-label">Devotee Details</div>
+        </div>
+        <div class="wizard-step" data-step="4">
+          <div class="wizard-step-circle">4</div>
+          <div class="wizard-step-label">Review & Pay</div>
+        </div>
+      </div>
+
+      <!-- Main Columns (Split for Wizard content & Sticky summary in steps 2/3) -->
+      <div class="grid-2" id="booking-grid-wrapper">
+        
+        <!-- Wizard Left Panel -->
+        <div class="wizard-content-panel">
+          
+          <!-- STEP 1: SERVICE CATALOG -->
+          <div class="wizard-pane active" id="wizard-pane-1">
+            <div class="catalog-header">
+              <div>
+                <h1 class="spiritual-title" style="color: var(--primary);">Choose Temple Seva</h1>
+                <p style="color: var(--text-muted);">Select a ritual, pooja, ceremony, or VIP darshan slot to begin.</p>
+              </div>
+            </div>
+            
+            <!-- Filters -->
+            <div class="search-filter-bar">
+              <div class="search-input-wrapper">
+                <i data-lucide="search" class="search-icon"></i>
+                <input type="text" id="seva-search" class="search-input" placeholder="Search by seva name, priest, or category...">
+              </div>
+              
+              <div class="category-scroll-container" id="category-tabs-list">
+                <!-- Tabs generated dynamically by JS -->
+              </div>
+            </div>
+
+            <!-- Service List (Dynamic) -->
+            <div class="services-grid" id="services-list-container">
+              <!-- Service cards skeleton loaders rendered initially -->
+              <div class="card service-card skeleton" style="height: 350px;"></div>
+              <div class="card service-card skeleton" style="height: 350px;"></div>
+              <div class="card service-card skeleton" style="height: 350px;"></div>
+            </div>
+          </div>
+
+          <!-- STEP 2: DATE & TIME SELECTOR -->
+          <div class="wizard-pane" id="wizard-pane-2" style="display: none;">
+            <h2 class="spiritual-title" style="color: var(--primary); margin-bottom: 0.5rem;">Select Date & Time</h2>
+            <p style="color: var(--text-muted); margin-bottom: 1.5rem;">Pick a date from the calendar and select an available timing slot.</p>
+
+            <div class="card calendar-card">
+              <div class="calendar-header">
+                <button class="btn btn-secondary" id="cal-prev-month" style="padding: 0.5rem 1rem;"><i data-lucide="chevron-left"></i></button>
+                <h3 id="calendar-month-year" style="font-size: var(--fs-md);">June 2026</h3>
+                <button class="btn btn-secondary" id="cal-next-month" style="padding: 0.5rem 1rem;"><i data-lucide="chevron-right"></i></button>
+              </div>
+              <div class="calendar-grid" id="calendar-grid-cells">
+                <!-- Day cells rendered by JS -->
+              </div>
+            </div>
+
+            <div class="slots-container">
+              <h3 style="font-size: var(--fs-md); border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">Available Time Slots</h3>
+              <div class="slots-grid" id="slots-grid-container">
+                <!-- Slots rendered dynamically -->
+              </div>
+            </div>
+
+            <!-- Mobile Navigation helper -->
+            <div style="margin-top: 2rem; display: flex; justify-content: space-between;">
+              <button class="btn btn-secondary" onclick="prevWizardStep()"><i data-lucide="arrow-left"></i> Back</button>
+              <button class="btn btn-primary" id="step2-next" disabled onclick="nextWizardStep()">Continue <i data-lucide="arrow-right"></i></button>
+            </div>
+          </div>
+
+          <!-- STEP 3: DEVOTEE DETAILS FORM -->
+          <div class="wizard-pane" id="wizard-pane-3" style="display: none;">
+            <h2 class="spiritual-title" style="color: var(--primary); margin-bottom: 0.5rem;">Devotee Details</h2>
+            <p style="color: var(--text-muted); margin-bottom: 1.5rem;">Enter information for the person performing the pooja/seva.</p>
+
+            <form id="devotee-details-form" onsubmit="event.preventDefault();">
+              <div class="form-section-title">Primary Devotee</div>
+              
+              <div class="form-group">
+                <label class="form-label" for="dev-name">Full Name <span style="color: var(--primary);">*</span></label>
+                <input type="text" id="dev-name" class="form-control" required placeholder="e.g. Rajesh Kumar">
+              </div>
+
+              <div style="display: grid; grid-template-columns: 1fr; gap: 1rem; margin-bottom: 1.25rem;">
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label" for="dev-phone">Mobile Number <span style="color: var(--primary);">*</span></label>
+                  <input type="tel" id="dev-phone" class="form-control" required placeholder="e.g. +91 98765 43210">
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label" for="dev-email">Email Address <span style="color: var(--primary);">*</span></label>
+                  <input type="email" id="dev-email" class="form-control" required placeholder="e.g. rajesh@example.com">
+                </div>
+              </div>
+
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem;">
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label" for="dev-city">City <span style="color: var(--primary);">*</span></label>
+                  <input type="text" id="dev-city" class="form-control" required placeholder="e.g. Mumbai">
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label" for="dev-participants">Participants <span style="color: var(--primary);">*</span></label>
+                  <input type="number" id="dev-participants" class="form-control" min="1" max="15" value="1">
+                </div>
+              </div>
+
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem;">
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label" for="dev-gotra">Gotra (Spiritual Lineage - Optional)</label>
+                  <input type="text" id="dev-gotra" class="form-control" placeholder="e.g. Kashyap">
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="dev-requests">Special Requests / Sankalpa notes</label>
+                <textarea id="dev-requests" class="form-control" rows="2" placeholder="e.g. Specific family names for sankalpa recital..."></textarea>
+              </div>
+
+              <div class="form-section-title">Add-ons & Offers</div>
+
+              <!-- Donations -->
+              <div style="margin-bottom: 1.5rem;">
+                <label class="form-label">Select Optional Sacred Donation Add-on</label>
+                
+                <div class="donation-option-card" data-donation="50">
+                  <div class="donation-details">
+                    <i data-lucide="heart" style="color: var(--primary);"></i>
+                    <div>
+                      <strong style="font-size: var(--fs-sm);">Gau Seva (Feed Temple Cows)</strong>
+                      <div style="font-size: var(--fs-xs); color: var(--text-muted);">Provide fodder for native cows at the Gaushala</div>
+                    </div>
+                  </div>
+                  <div class="donation-amount">₹50</div>
+                </div>
+
+                <div class="donation-option-card" data-donation="150">
+                  <div class="donation-details">
+                    <i data-lucide="soup" style="color: var(--primary);"></i>
+                    <div>
+                      <strong style="font-size: var(--fs-sm);">Annadanam (Sacred Food Drive)</strong>
+                      <div style="font-size: var(--fs-xs); color: var(--text-muted);">Sponsor mid-day prasadam meals for 5 devotees</div>
+                    </div>
+                  </div>
+                  <div class="donation-amount">₹150</div>
+                </div>
+              </div>
+
+              <!-- Promo Code -->
+              <div class="form-group">
+                <label class="form-label" for="promo-code">Promo Code</label>
+                <div class="promo-container">
+                  <input type="text" id="promo-code" class="form-control" placeholder="Try DEVOTE10 or FESTIVAL20">
+                  <button class="btn btn-secondary" type="button" id="apply-promo-btn">Apply</button>
+                </div>
+                <div id="promo-status-msg" style="font-size: var(--fs-xs); margin-top: 0.35rem; font-weight: 600;"></div>
+              </div>
+
+              <div class="checkbox-group">
+                <input type="checkbox" id="terms-accept" required>
+                <label for="terms-accept" style="font-size: var(--fs-xs); color: var(--text-muted);">
+                  I agree to the temple decorum guidelines, dress codes (traditional attire recommended), and booking terms.
+                </label>
+              </div>
+
+              <!-- Wizard navigation -->
+              <div style="margin-top: 2rem; display: flex; justify-content: space-between;">
+                <button class="btn btn-secondary" type="button" onclick="prevWizardStep()"><i data-lucide="arrow-left"></i> Back</button>
+                <button class="btn btn-primary" type="submit" id="step3-next">Review Booking <i data-lucide="arrow-right"></i></button>
+              </div>
+            </form>
+          </div>
+
+          <!-- STEP 4: REVIEW & PAYMENT -->
+          <div class="wizard-pane" id="wizard-pane-4" style="display: none;">
+            <h2 class="spiritual-title" style="color: var(--primary); margin-bottom: 0.5rem;">Review & Payment</h2>
+            <p style="color: var(--text-muted); margin-bottom: 1.5rem;">Review your Seva reservation details and choose a payment method.</p>
+
+            <div class="card" style="margin-bottom: 1.5rem;">
+              <h3 style="font-size: var(--fs-md); margin-bottom: 1rem; color: var(--primary-dark); border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">Booking Specifications</h3>
+              
+              <div class="review-details-list" id="payment-review-details">
+                <!-- Populated dynamically by JS -->
+              </div>
+            </div>
+
+            <div class="card" style="margin-bottom: 1.5rem;">
+              <h3 style="font-size: var(--fs-md); margin-bottom: 1rem; color: var(--primary-dark);">Choose Payment Method</h3>
+              
+              <div class="payment-methods-grid">
+                <div class="payment-method-card active" data-method="upi">
+                  <div class="payment-icon"><i data-lucide="smartphone"></i></div>
+                  <div>
+                    <div class="payment-label">UPI (GPay / PhonePe / Paytm)</div>
+                    <div style="font-size: var(--fs-xs); color: var(--text-muted);">Instant verification, zero transaction fees</div>
+                  </div>
+                </div>
+
+                <div class="payment-method-card" data-method="card">
+                  <div class="payment-icon"><i data-lucide="credit-card"></i></div>
+                  <div>
+                    <div class="payment-label">Credit / Debit Card</div>
+                    <div style="font-size: var(--fs-xs); color: var(--text-muted);">Visa, MasterCard, RuPay</div>
+                  </div>
+                </div>
+
+                <div class="payment-method-card" data-method="netbanking">
+                  <div class="payment-icon"><i data-lucide="landmark"></i></div>
+                  <div>
+                    <div class="payment-label">Net Banking</div>
+                    <div style="font-size: var(--fs-xs); color: var(--text-muted);">All major Indian banks</div>
+                  </div>
+                </div>
+
+                <div class="payment-method-card" data-method="wallet">
+                  <div class="payment-icon"><i data-lucide="wallet"></i></div>
+                  <div>
+                    <div class="payment-label">Digital Wallets</div>
+                    <div style="font-size: var(--fs-xs); color: var(--text-muted);">Mobikwik, Amazon Pay, etc.</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Wizard Navigation buttons -->
+            <div style="display: flex; justify-content: space-between;">
+              <button class="btn btn-secondary" onclick="prevWizardStep()"><i data-lucide="arrow-left"></i> Back</button>
+              <button class="btn btn-primary" id="confirm-payment-btn" onclick="executeMockPayment()">Confirm & Pay Booking <i data-lucide="check-circle"></i></button>
+            </div>
+          </div>
+
+          <!-- BOOKING SUCCESS SCREEN -->
+          <div class="wizard-pane" id="wizard-pane-success" style="display: none;">
+            <div class="card success-card">
+              <div class="success-icon-badge">
+                <i data-lucide="check"></i>
+              </div>
+              <h2 class="spiritual-title" style="color: var(--status-confirmed-text); margin-bottom: 0.5rem;">Booking Confirmed!</h2>
+              <p style="color: var(--text-muted);">Your temple seva reservation has been successfully registered. A confirmation message was sent to your phone and email.</p>
+
+              <!-- QR Ticket Box -->
+              <div class="qr-ticket-box">
+                <div style="font-size: var(--fs-xs); text-transform: uppercase; font-weight: 700; color: var(--text-muted); margin-bottom: 0.5rem;">Booking Ticket QR</div>
+                <div class="qr-code-img" id="success-qr-code">
+                  <!-- Vector QR Mockup generated by JS -->
+                </div>
+                <div class="qr-booking-id" id="success-booking-id">SEVA-8294719</div>
+              </div>
+
+              <!-- Ticket Specs Summary -->
+              <div style="font-size: var(--fs-sm); text-align: left; background-color: var(--bg-muted); padding: 1rem; border-radius: var(--border-radius-md); margin-bottom: 1.5rem;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 0.35rem;">
+                  <span><strong>Seva:</strong></span>
+                  <span id="success-summary-name">Ganpati Abhishek Pooja</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 0.35rem;">
+                  <span><strong>Date & Time:</strong></span>
+                  <span id="success-summary-datetime">Jun 25, 2026 at 08:00 AM</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                  <span><strong>Primary Devotee:</strong></span>
+                  <span id="success-summary-devotee">Rajesh Kumar</span>
+                </div>
+              </div>
+
+              <!-- Download & Action Triggers -->
+              <div class="success-action-buttons">
+                <button class="btn btn-secondary" onclick="triggerDownload('ticket')"><i data-lucide="download"></i> Download Ticket</button>
+                <button class="btn btn-secondary" onclick="triggerDownload('receipt')"><i data-lucide="file-text"></i> Download Receipt</button>
+                <button class="btn btn-secondary" onclick="triggerAddToCalendar()"><i data-lucide="calendar"></i> Add To Calendar</button>
+                <button class="btn btn-gold" onclick="triggerWhatsAppShare()"><i data-lucide="share-2"></i> Share on WhatsApp</button>
+              </div>
+
+              <div style="margin-top: 1.5rem; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+                <button class="btn btn-primary btn-block" onclick="navigateToDashboard()">View My Bookings in Dashboard</button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Wizard Right Sticky Sidebar (Steps 2 and 3) -->
+        <div class="wizard-sidebar-panel" id="booking-sidebar-panel" style="display: none;">
+          <div class="card sticky-sidebar summary-sidebar-card">
+            <h3 class="spiritual-title summary-title" style="color: var(--primary-dark);">Booking Summary</h3>
+            <div id="sidebar-summary-details">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- ======================================================================
+         2. CUSTOMER DASHBOARD VIEW
+         ====================================================================== -->
+    <section id="customer-dashboard" class="view-section">
+      <div class="catalog-header" style="margin-bottom: 2rem;">
+        <div>
+          <h1 class="spiritual-title" style="color: var(--primary);">Devotee Dashboard</h1>
+          <p style="color: var(--text-muted);">Manage your bookings, download entries, receipts, and view notifications.</p>
+        </div>
+      </div>
+
+      <!-- Tab selection -->
+      <div class="dashboard-tabs-bar" id="cust-dashboard-tabs">
+        <div class="dashboard-tab active" data-tab="upcoming">Upcoming Bookings</div>
+        <div class="dashboard-tab" data-tab="history">Booking History</div>
+        <div class="dashboard-tab" data-tab="tickets">Download Tickets</div>
+        <div class="dashboard-tab" data-tab="receipts">Download Receipts</div>
+        <div class="dashboard-tab" data-tab="notifications">Notifications</div>
+        <div class="dashboard-tab" data-tab="profile">Profile Settings</div>
+      </div>
+
+      <!-- Dynamic Tab Views Container -->
+      <div id="cust-dashboard-tab-content">
+        <!-- Upcoming bookings list -->
+        <div class="tab-pane active" id="cust-tab-upcoming">
+          <div class="dashboard-grid" id="upcoming-bookings-grid">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+        
+        <!-- Booking History -->
+        <div class="tab-pane" id="cust-tab-history" style="display: none;">
+          <div class="dashboard-grid" id="history-bookings-grid">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+
+        <!-- Download Tickets -->
+        <div class="tab-pane" id="cust-tab-tickets" style="display: none;">
+          <div class="dashboard-grid" id="download-tickets-grid">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+
+        <!-- Download Receipts -->
+        <div class="tab-pane" id="cust-tab-receipts" style="display: none;">
+          <div class="dashboard-grid" id="download-receipts-grid">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+
+        <!-- Notifications -->
+        <div class="tab-pane" id="cust-tab-notifications" style="display: none;">
+          <div class="card">
+            <h3 style="font-size: var(--fs-md); margin-bottom: 1rem;">Recent Alerts</h3>
+            <div id="notifications-list-container" style="display: flex; flex-direction: column; gap: 0.75rem;">
+              <!-- Notifications populated by JS -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Profile Settings -->
+        <div class="tab-pane" id="cust-tab-profile" style="display: none;">
+          <div class="card" style="max-width: 600px;">
+            <h3 style="font-size: var(--fs-md); margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;">Your Profile Information</h3>
+            <form id="profile-settings-form" onsubmit="event.preventDefault(); saveProfileSettings();">
+              <div class="form-group">
+                <label class="form-label" for="profile-name">Full Name</label>
+                <input type="text" id="profile-name" class="form-control" value="Rajesh Kumar">
+              </div>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem;">
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label" for="profile-phone">Mobile Number</label>
+                  <input type="tel" id="profile-phone" class="form-control" value="+91 98765 43210">
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label" for="profile-email">Email</label>
+                  <input type="email" id="profile-email" class="form-control" value="rajesh@example.com">
+                </div>
+              </div>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label" for="profile-city">City</label>
+                  <input type="text" id="profile-city" class="form-control" value="Mumbai">
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                  <label class="form-label" for="profile-gotra">Gotra</label>
+                  <input type="text" id="profile-gotra" class="form-control" value="Kashyap">
+                </div>
+              </div>
+              <button class="btn btn-primary" type="submit">Save Settings <i data-lucide="check"></i></button>
+            </form>
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- ======================================================================
+         3. ADMIN BOOKING MANAGEMENT PORTAL
+         ====================================================================== -->
+    <section id="admin-dashboard" class="view-section">
+      
+      <div class="admin-container">
+        
+        <!-- Sidebar Navigation -->
+        <aside class="admin-sidebar">
+          <div class="sidebar-link active" data-admin-tab="dashboard">
+            <i data-lucide="layout-dashboard"></i> Dashboard
+          </div>
+          <div class="sidebar-link" data-admin-tab="bookings">
+            <i data-lucide="list-ordered"></i> Bookings
+          </div>
+          <div class="sidebar-link" data-admin-tab="services">
+            <i data-lucide="sparkles"></i> Services
+          </div>
+          <div class="sidebar-link" data-admin-tab="inventory">
+            <i data-lucide="calendar-range"></i> Inventory
+          </div>
+          <div class="sidebar-link" data-admin-tab="priests">
+            <i data-lucide="users"></i> Priests
+          </div>
+          <div class="sidebar-link" data-admin-tab="reports">
+            <i data-lucide="bar-chart-3"></i> Reports
+          </div>
+          <div class="sidebar-link" data-admin-tab="settings">
+            <i data-lucide="settings"></i> Settings
+          </div>
+        </aside>
+
+        <!-- Admin Main Content Viewport -->
+        <div class="admin-main-panel">
+          
+          <!-- ADMIN TABS VIEWPORT -->
+          <div id="admin-tabs-content">
+
+            <!-- ADMIN TAB 1: KPI OVERVIEW DASHBOARD -->
+            <div class="admin-tab-pane active" id="admin-tab-dashboard">
+              <h2 class="spiritual-title" style="color: var(--primary); margin-bottom: 1.5rem;">Temple Operations Command Centre</h2>
+              
+              <!-- KPIs Grid -->
+              <div class="kpis-grid">
+                <div class="card kpi-card">
+                  <div class="kpi-label">Total Bookings</div>
+                  <div class="kpi-value" id="kpi-total-bookings">1,482</div>
+                </div>
+                <div class="card kpi-card">
+                  <div class="kpi-label">Today's Bookings</div>
+                  <div class="kpi-value" id="kpi-today-bookings">54</div>
+                </div>
+                <div class="card kpi-card">
+                  <div class="kpi-label">Gross Revenue</div>
+                  <div class="kpi-value" id="kpi-revenue">₹4,82,500</div>
+                </div>
+                <div class="card kpi-card">
+                  <div class="kpi-label">Upcoming Sevas</div>
+                  <div class="kpi-value" id="kpi-upcoming">124</div>
+                </div>
+                <div class="card kpi-card">
+                  <div class="kpi-label">Capacity Util.</div>
+                  <div class="kpi-value" id="kpi-utilization">88%</div>
+                </div>
+              </div>
+
+              <!-- Interactive Charts -->
+              <div class="charts-grid">
+                <div class="chart-box">
+                  <div class="chart-title">Daily Bookings Volume (June)</div>
+                  <div class="chart-svg-container" id="daily-bookings-chart">
+                    <!-- SVG Chart rendered by JS -->
+                  </div>
+                </div>
+                <div class="chart-box">
+                  <div class="chart-title">Popular Services Distribution</div>
+                  <div class="chart-svg-container" id="popular-services-chart">
+                    <!-- SVG Chart rendered by JS -->
+                  </div>
+                </div>
+              </div>
+
+              <!-- Operational Quick Verification / QR Screen Inline -->
+              <div class="card" style="margin-bottom: 1.5rem;">
+                <h3 style="font-size: var(--fs-md); margin-bottom: 1rem; color: var(--primary-dark);"><i data-lucide="qr-code"></i> Devotee Entry Verification Scanner</h3>
+                <div style="display: grid; grid-template-columns: 1fr; gap: 1.5rem;">
+                  <div style="max-width: 450px;">
+                    <p style="font-size: var(--fs-sm); color: var(--text-muted); margin-bottom: 1rem;">Verify booking ticket using ID lookup or simulated camera QR scan.</p>
+                    
+                    <div class="form-group" style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+                      <input type="text" id="admin-verify-search-input" class="form-control" placeholder="Search by Booking ID (e.g. SEVA-10294)...">
+                      <button class="btn btn-secondary" onclick="verifyBookingManualLookup()">Lookup</button>
+                    </div>
+                    
+                    <button class="btn btn-primary btn-block" onclick="toggleSimulatedQRScanner()"><i data-lucide="scan"></i> Simulate QR Webcam Scanner</button>
+                  </div>
+                  
+                  <div id="simulated-scanner-container" style="display: none;">
+                    <div class="qr-scanner-box">
+                      <div class="qr-scanner-laser"></div>
+                      <i data-lucide="camera" style="font-size: 3rem; color: rgba(255,255,255,0.3); margin-bottom: 0.5rem;"></i>
+                      <div style="font-size: var(--fs-xs); color: rgba(255,255,255,0.7);">Scanning for ticket code...</div>
+                      <button class="btn btn-secondary" onclick="triggerSimulatedScan()" style="position: absolute; bottom: 10px; font-size: 10px; padding: 0.25rem 0.5rem; height: auto; min-height: auto;">Simulate Successful Scan</button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Live Scan Results -->
+                <div id="scan-results-box" class="card" style="display: none; border-color: var(--secondary); background-color: #FFFDF9; margin-top: 1rem; margin-bottom: 0;">
+                  <!-- Dynamic verification values -->
+                </div>
+              </div>
+            </div>
+
+            <!-- ADMIN TAB 2: BOOKINGS TABLE -->
+            <div class="admin-tab-pane" id="admin-tab-bookings" style="display: none;">
+              <div class="admin-toolbar">
+                <div>
+                  <h2 class="spiritual-title" style="color: var(--primary);">Seva Reservations</h2>
+                  <p style="font-size: var(--fs-xs); color: var(--text-muted);">Search, sort, filter, and execute administrative functions.</p>
+                </div>
+                
+                <div class="admin-actions-bar">
+                  <button class="btn btn-secondary" onclick="exportData('csv')"><i data-lucide="file-output"></i> CSV Export</button>
+                  <button class="btn btn-secondary" onclick="exportData('excel')"><i data-lucide="file-spreadsheet"></i> Excel Export</button>
+                </div>
+              </div>
+
+              <!-- Search/Filters controls -->
+              <div class="card" style="padding: 1rem; margin-bottom: 1.25rem; display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center;">
+                <input type="text" id="admin-table-search" class="form-control" style="flex: 1; min-width: 200px;" placeholder="Search devotee, phone, ID...">
+                
+                <select id="admin-filter-status" class="form-control" style="width: auto; min-width: 140px;">
+                  <option value="all">All Statuses</option>
+                  <option value="Confirmed">Confirmed</option>
+                  <option value="Pending">Pending</option>
+                  <option value="Completed">Completed</option>
+                  <option value="Cancelled">Cancelled</option>
+                </select>
+
+                <select id="admin-filter-category" class="form-control" style="width: auto; min-width: 150px;">
+                  <option value="all">All Categories</option>
+                  <option value="Pooja">Pooja</option>
+                  <option value="Ritual">Ritual</option>
+                  <option value="VIP Darshan">VIP Darshan</option>
+                  <option value="Festival Service">Festival Service</option>
+                  <option value="Ceremony">Ceremony</option>
+                </select>
+                
+                <button class="btn btn-primary" onclick="applyAdminFilters()" style="padding: 0.6rem 1.25rem; font-size: var(--fs-sm); height: auto; min-height: auto;">Apply Filters</button>
+              </div>
+
+              <!-- Bulk Actions panel -->
+              <div id="bulk-actions-panel" style="display: none; background-color: var(--primary-light); color: white; padding: 0.75rem 1rem; border-radius: var(--border-radius-md); margin-bottom: 1rem; justify-content: space-between; align-items: center;">
+                <span id="bulk-select-count">0 items selected</span>
+                <div style="display: flex; gap: 0.5rem;">
+                  <button class="btn btn-secondary" onclick="executeBulkAction('approve')" style="font-size: 11px; padding: 0.35rem 0.6rem; height: auto; min-height: auto;">Bulk Approve</button>
+                  <button class="btn btn-secondary" onclick="executeBulkAction('cancel')" style="font-size: 11px; padding: 0.35rem 0.6rem; height: auto; min-height: auto;">Bulk Cancel</button>
+                </div>
+              </div>
+
+              <!-- Advanced responsive table -->
+              <div class="table-responsive-wrapper">
+                <table class="admin-table">
+                  <thead>
+                    <tr>
+                      <th style="width: 40px;"><input type="checkbox" id="table-select-all" onclick="toggleSelectAllRows(this)"></th>
+                      <th>Booking ID</th>
+                      <th>Customer Name</th>
+                      <th>Service Name</th>
+                      <th>Priest Assigned</th>
+                      <th>Date / Time</th>
+                      <th>Amount</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="admin-bookings-tbody">
+                    <!-- Populated dynamically -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- ADMIN TAB 3: SERVICES MANAGEMENT -->
+            <div class="admin-tab-pane" id="admin-tab-services" style="display: none;">
+              <div class="admin-toolbar">
+                <h2 class="spiritual-title" style="color: var(--primary);">Service & Ritual Editor</h2>
+                <button class="btn btn-primary" onclick="openNewServiceModal()"><i data-lucide="plus"></i> Add New Seva</button>
+              </div>
+
+              <div class="services-grid" id="admin-services-list">
+                <!-- Managed services cards -->
+              </div>
+            </div>
+
+            <!-- ADMIN TAB 4: INVENTORY CAPACITY & closed dates -->
+            <div class="admin-tab-pane" id="admin-tab-inventory" style="display: none;">
+              <h2 class="spiritual-title" style="color: var(--primary); margin-bottom: 0.5rem;">Inventory & Waitlist Manager</h2>
+              <p style="color: var(--text-muted); margin-bottom: 1.5rem;">Manage daily maximum capacity, specify high-volume festival override caps, declare closed dates, and oversee waitlists.</p>
+
+              <div class="grid-2">
+                <div>
+                  <div class="card">
+                    <h3 style="font-size: var(--fs-md); margin-bottom: 1rem;"><i data-lucide="calendar"></i> Inventory Master Calendar</h3>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                      <h4 id="admin-inv-month" style="font-size: var(--fs-base);">June 2026</h4>
+                      <div style="display: flex; gap: 0.35rem;">
+                        <button class="btn btn-secondary" onclick="navigateAdminInvMonth(-1)" style="padding: 0.4rem 0.8rem;"><i data-lucide="chevron-left"></i></button>
+                        <button class="btn btn-secondary" onclick="navigateAdminInvMonth(1)" style="padding: 0.4rem 0.8rem;"><i data-lucide="chevron-right"></i></button>
+                      </div>
+                    </div>
+                    <div class="calendar-grid">
+                      <div class="calendar-day-header">Su</div>
+                      <div class="calendar-day-header">Mo</div>
+                      <div class="calendar-day-header">Tu</div>
+                      <div class="calendar-day-header">We</div>
+                      <div class="calendar-day-header">Th</div>
+                      <div class="calendar-day-header">Fr</div>
+                      <div class="calendar-day-header">Sa</div>
+                    </div>
+                    <div class="inventory-grid" id="admin-inventory-grid">
+                      <!-- Inventory daily cells -->
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <div class="card" id="inventory-editor-form-card">
+                    <h3 style="font-size: var(--fs-md); margin-bottom: 1rem; color: var(--primary);">Configure Selected Date</h3>
+                    <div style="font-size: var(--fs-sm); color: var(--text-muted); margin-bottom: 1.25rem;" id="selected-inv-date-label">No Date Selected</div>
+                    
+                    <form id="inventory-edit-form" onsubmit="event.preventDefault(); saveInventoryDetails();">
+                      <div class="form-group">
+                        <label class="form-label" for="inv-capacity">Daily Max Slots</label>
+                        <input type="number" id="inv-capacity" class="form-control" min="5" max="500">
+                      </div>
+
+                      <div class="form-group">
+                        <label class="form-label" for="inv-type">Day Category Type</label>
+                        <select id="inv-type" class="form-control">
+                          <option value="Normal">Normal Day</option>
+                          <option value="Festival">Festival Day (Gold Accent)</option>
+                          <option value="Closed">Closed Date (Temple Holiday)</option>
+                        </select>
+                      </div>
+
+                      <div class="form-group">
+                        <label class="form-label" for="inv-festival-name">Festival Label</label>
+                        <input type="text" id="inv-festival-name" class="form-control" placeholder="e.g. Nirjala Ekadashi">
+                      </div>
+
+                      <div class="checkbox-group" style="margin-bottom: 1.5rem;">
+                        <input type="checkbox" id="inv-waitlist-enable">
+                        <label for="inv-waitlist-enable">Enable Auto-Waitlisting when fully booked</label>
+                      </div>
+
+                      <button class="btn btn-primary btn-block" type="submit" id="save-inv-btn" disabled>Save Configuration</button>
+                    </form>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ADMIN TAB 5: PRIEST ASSIGNMENTS -->
+            <div class="admin-tab-pane" id="admin-tab-priests" style="display: none;">
+              <div class="admin-toolbar">
+                <h2 class="spiritual-title" style="color: var(--primary);">Priest Management</h2>
+                <button class="btn btn-primary" onclick="openNewPriestModal()"><i data-lucide="plus"></i> Register Priest</button>
+              </div>
+              <div class="dashboard-grid" id="admin-priests-grid">
+                <!-- Priest list rendered dynamically -->
+              </div>
+            </div>
+
+            <!-- ADMIN TAB 6: REPORTS & STATS -->
+            <div class="admin-tab-pane" id="admin-tab-reports" style="display: none;">
+              <h2 class="spiritual-title" style="color: var(--primary); margin-bottom: 1.5rem;">Analytics & Operational Ledger</h2>
+              <div class="card">
+                <h3 style="font-size: var(--fs-md); margin-bottom: 1rem;">Generate Custom Report</h3>
+                <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: flex-end; margin-bottom: 1.5rem;">
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">Start Date</label>
+                    <input type="date" class="form-control" value="2026-06-01">
+                  </div>
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">End Date</label>
+                    <input type="date" class="form-control" value="2026-06-30">
+                  </div>
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label">Report Type</label>
+                    <select class="form-control">
+                      <option>Financial Settlement Ledger</option>
+                      <option>Priest Service Logs</option>
+                      <option>Festival Slots Utilization Audit</option>
+                    </select>
+                  </div>
+                  <button class="btn btn-primary" onclick="generateMockReport()">Generate Report</button>
+                </div>
+                
+                <div id="report-view-area" style="display: none; border-top: 1px solid var(--border-color); padding-top: 1.5rem;">
+                  <!-- Dynamic Report elements -->
+                </div>
+              </div>
+            </div>
+
+            <!-- ADMIN TAB 7: SETTINGS -->
+            <div class="admin-tab-pane" id="admin-tab-settings" style="display: none;">
+              <h2 class="spiritual-title" style="color: var(--primary); margin-bottom: 1.5rem;">Temple System Settings</h2>
+              <div class="card" style="max-width: 650px;">
+                <h3 style="font-size: var(--fs-md); border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; margin-bottom: 1.25rem;">General Settings</h3>
+                <form id="admin-settings-form" onsubmit="event.preventDefault(); saveAllAdminSettings();">
+                  <div class="form-group">
+                    <label class="form-label">Temple Name</label>
+                    <input type="text" id="setting-temple-name" class="form-control" value="Sri Sidhivinayak Mandir">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Automatic WhatsApp Alerts Message Template</label>
+                    <textarea id="setting-whatsapp-template" class="form-control" rows="3">Namaste Devotee, your booking [ID] for [Seva] is confirmed. Date: [Date] Time: [Time]. Please show this message at the check-in gate.</textarea>
+                  </div>
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                      <label class="form-label">Platform Convenience Fee (₹)</label>
+                      <input type="number" id="setting-convenience-fee" class="form-control" value="20">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                      <label class="form-label">Tax Rate (%)</label>
+                      <input type="number" id="setting-tax-rate" class="form-control" value="5">
+                    </div>
+                  </div>
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                      <label class="form-label">Max Booking Advance (Days)</label>
+                      <input type="number" id="setting-max-advance-days" class="form-control" value="90">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                      <label class="form-label">Cancellation Window (Hours)</label>
+                      <input type="number" id="setting-cancellation-hours" class="form-control" value="24">
+                    </div>
+                  </div>
+                  <div style="margin-bottom: 1.5rem;">
+                    <label class="form-label">Notification Channels</label>
+                    <div style="display: flex; gap: 1.5rem; margin-top: 0.5rem;">
+                      <div class="checkbox-group">
+                        <input type="checkbox" id="setting-email-notif" checked>
+                        <label for="setting-email-notif">Email</label>
+                      </div>
+                      <div class="checkbox-group">
+                        <input type="checkbox" id="setting-sms-notif">
+                        <label for="setting-sms-notif">SMS</label>
+                      </div>
+                      <div class="checkbox-group">
+                        <input type="checkbox" id="setting-whatsapp-notif" checked>
+                        <label for="setting-whatsapp-notif">WhatsApp</label>
+                      </div>
+                    </div>
+                  </div>
+                  <button class="btn btn-primary" type="submit">Save Changes</button>
+                </form>
+              </div>
+              <div class="card" style="max-width: 650px; margin-top: 1.5rem;">
+                <h3 style="font-size: var(--fs-md); border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; margin-bottom: 1.25rem;">Admin Account</h3>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                  <div>
+                    <div style="font-weight: 600;">Admin User</div>
+                    <div style="font-size: var(--fs-sm); color: var(--text-muted);" id="admin-user-display">Loading...</div>
+                  </div>
+                  <button class="btn btn-secondary" onclick="handleAdminLogout()">Logout</button>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- ======================================================================
+       ADMIN BOOKING DETAIL DRAWER
+       ====================================================================== -->
+  <div class="drawer-overlay" id="drawer-overlay" onclick="closeAdminDrawer()"></div>
+  <div class="drawer" id="admin-booking-drawer">
+    <div class="drawer-header">
+      <h3 class="spiritual-title" style="color: var(--primary);" id="drawer-title">Booking ID: SEVA-1024</h3>
+      <button class="btn btn-secondary" onclick="closeAdminDrawer()" style="padding: 0.4rem; border-radius: 50%; width: 32px; height: 32px; min-height: auto;"><i data-lucide="x"></i></button>
+    </div>
+    
+    <div class="drawer-body" id="drawer-content-body">
+      <!-- Populated dynamically by JS -->
+    </div>
+    
+    <div class="drawer-footer" id="drawer-footer-actions">
+      <!-- Dynamic contextual actions -->
+    </div>
+  </div>
+
+  <!-- ======================================================================
+       TOAST NOTIFICATION CONTAINER
+       ====================================================================== -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Dynamic Application Script -->
+  <script src="app.js"></script>
+
+</body>
+</html>
