@@ -1,11 +1,9 @@
 const express = require('express');
-const { createClient } = require('@supabase/supabase-js');
 const bcrypt = require('bcryptjs');
+const { ObjectId } = require('mongodb');
 const router = express.Router();
-
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
+const { getDb } = require('./db');
+const { getNextSequence } = require('./api');
 
 // Simple session store (in production, use Redis or JWT)
 const sessions = new Map();
@@ -17,6 +15,7 @@ const sessions = new Map();
 // Admin login
 router.post('/login', async (req, res) => {
   try {
+    const db = await getDb();
     const { email, password } = req.body;
 
     if (!email || !password) {
@@ -24,20 +23,14 @@ router.post('/login', async (req, res) => {
     }
 
     // Get admin user
-    const { data: admin, error } = await supabase
-      .from('admin_users')
-      .select('*')
-      .eq('email', email)
-      .eq('is_active', true)
-      .single();
+    const admin = await db.collection('admin_users').findOne({ email, is_active: true });
 
-    if (error || !admin) {
+    if (!admin) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
     // Verify password (simple comparison for demo - use bcrypt in production)
-    // For now, we'll use a simple hash check or allow setup
-    const validPassword = password === 'admin123' || await bcrypt.compare(password, admin.password_hash);
+    const validPassword = password === 'admin123' || await bcrypt.compare(password, admin.password_hash || '');
 
     if (!validPassword) {
       return res.status(401).json({ error: 'Invalid credentials' });
@@ -53,10 +46,10 @@ router.post('/login', async (req, res) => {
     });
 
     // Update last login
-    await supabase
-      .from('admin_users')
-      .update({ last_login: new Date().toISOString() })
-      .eq('id', admin.id);
+    await db.collection('admin_users').updateOne(
+      { id: admin.id },
+      { $set: { last_login: new Date().toISOString() } }
+    );
 
     // Log activity
     await logAdminActivity(admin.id, 'login', 'admin', admin.id, { email });
@@ -109,19 +102,15 @@ router.get('/me', verifyAdmin, (req, res) => {
 // Get all settings
 router.get('/settings', async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('admin_settings')
-      .select('*')
-      .order('setting_key');
-
-    if (error) throw error;
+    const db = await getDb();
+    const data = await db.collection('admin_settings').find({}).sort({ setting_key: 1 }).toArray();
 
     // Convert to key-value object
     const settings = {};
     data.forEach(s => {
       let value = s.setting_value;
       if (s.setting_type === 'number') value = parseFloat(value);
-      else if (s.setting_type === 'boolean') value = value === 'true';
+      else if (s.setting_type === 'boolean') value = value === 'true' || value === true;
       settings[s.setting_key] = value;
     });
 
@@ -134,25 +123,25 @@ router.get('/settings', async (req, res) => {
 // Update setting
 router.patch('/settings/:key', verifyAdmin, async (req, res) => {
   try {
+    const db = await getDb();
     const { key } = req.params;
     const { value } = req.body;
 
-    const { data, error } = await supabase
-      .from('admin_settings')
-      .update({
-        setting_value: String(value),
-        updated_at: new Date().toISOString(),
-        updated_by: req.admin.id
-      })
-      .eq('setting_key', key)
-      .select()
-      .single();
-
-    if (error) throw error;
+    const result = await db.collection('admin_settings').findOneAndUpdate(
+      { setting_key: key },
+      {
+        $set: {
+          setting_value: String(value),
+          updated_at: new Date().toISOString(),
+          updated_by: req.admin.id
+        }
+      },
+      { returnDocument: 'after', upsert: true }
+    );
 
     await logAdminActivity(req.admin.id, 'update_setting', 'setting', key, { value });
 
-    res.json(data);
+    res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -165,31 +154,32 @@ router.patch('/settings/:key', verifyAdmin, async (req, res) => {
 // Create service
 router.post('/services', verifyAdmin, async (req, res) => {
   try {
+    const db = await getDb();
     const { name, category, duration, priest, price, max_slots, is_popular, is_recommended, image_gradient, icon, description } = req.body;
 
-    const { data, error } = await supabase
-      .from('services')
-      .insert({
-        name,
-        category,
-        duration,
-        priest,
-        price: parseFloat(price),
-        max_slots: parseInt(max_slots) || 10,
-        is_popular: Boolean(is_popular),
-        is_recommended: Boolean(is_recommended),
-        image_gradient,
-        icon,
-        description
-      })
-      .select()
-      .single();
+    const id = await getNextSequence(db, 'services');
 
-    if (error) throw error;
+    const doc = {
+      id,
+      name,
+      category,
+      duration,
+      priest,
+      price: parseFloat(price),
+      max_slots: parseInt(max_slots) || 10,
+      is_popular: Boolean(is_popular),
+      is_recommended: Boolean(is_recommended),
+      image_gradient,
+      icon,
+      description,
+      created_at: new Date().toISOString()
+    };
 
-    await logAdminActivity(req.admin.id, 'create', 'service', data.id, { name });
+    await db.collection('services').insertOne(doc);
 
-    res.json(data);
+    await logAdminActivity(req.admin.id, 'create', 'service', id, { name });
+
+    res.json(doc);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -198,24 +188,24 @@ router.post('/services', verifyAdmin, async (req, res) => {
 // Update service
 router.patch('/services/:id', verifyAdmin, async (req, res) => {
   try {
-    const { id } = req.params;
+    const db = await getDb();
+    const id = parseInt(req.params.id);
     const updates = { ...req.body, updated_at: new Date().toISOString() };
 
     if (updates.price) updates.price = parseFloat(updates.price);
     if (updates.max_slots) updates.max_slots = parseInt(updates.max_slots);
 
-    const { data, error } = await supabase
-      .from('services')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single();
+    const result = await db.collection('services').findOneAndUpdate(
+      { id },
+      { $set: updates },
+      { returnDocument: 'after' }
+    );
 
-    if (error) throw error;
+    if (!result) return res.status(404).json({ error: 'Service not found' });
 
     await logAdminActivity(req.admin.id, 'update', 'service', id, updates);
 
-    res.json(data);
+    res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -224,14 +214,10 @@ router.patch('/services/:id', verifyAdmin, async (req, res) => {
 // Delete service
 router.delete('/services/:id', verifyAdmin, async (req, res) => {
   try {
-    const { id } = req.params;
+    const db = await getDb();
+    const id = parseInt(req.params.id);
 
-    const { error } = await supabase
-      .from('services')
-      .delete()
-      .eq('id', id);
-
-    if (error) throw error;
+    await db.collection('services').deleteOne({ id });
 
     await logAdminActivity(req.admin.id, 'delete', 'service', id, {});
 
@@ -248,24 +234,25 @@ router.delete('/services/:id', verifyAdmin, async (req, res) => {
 // Create priest
 router.post('/priests', verifyAdmin, async (req, res) => {
   try {
+    const db = await getDb();
     const { name, status, specialty, ratings } = req.body;
 
-    const { data, error } = await supabase
-      .from('priests')
-      .insert({
-        name,
-        status: status || 'Available',
-        specialty,
-        ratings: parseFloat(ratings) || 4.5
-      })
-      .select()
-      .single();
+    const id = await getNextSequence(db, 'priests');
 
-    if (error) throw error;
+    const doc = {
+      id,
+      name,
+      status: status || 'Available',
+      specialty,
+      ratings: parseFloat(ratings) || 4.5,
+      created_at: new Date().toISOString()
+    };
 
-    await logAdminActivity(req.admin.id, 'create', 'priest', data.id, { name });
+    await db.collection('priests').insertOne(doc);
 
-    res.json(data);
+    await logAdminActivity(req.admin.id, 'create', 'priest', id, { name });
+
+    res.json(doc);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -274,23 +261,23 @@ router.post('/priests', verifyAdmin, async (req, res) => {
 // Update priest
 router.patch('/priests/:id', verifyAdmin, async (req, res) => {
   try {
-    const { id } = req.params;
+    const db = await getDb();
+    const id = parseInt(req.params.id);
     const updates = { ...req.body };
 
     if (updates.ratings) updates.ratings = parseFloat(updates.ratings);
 
-    const { data, error } = await supabase
-      .from('priests')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single();
+    const result = await db.collection('priests').findOneAndUpdate(
+      { id },
+      { $set: updates },
+      { returnDocument: 'after' }
+    );
 
-    if (error) throw error;
+    if (!result) return res.status(404).json({ error: 'Priest not found' });
 
     await logAdminActivity(req.admin.id, 'update', 'priest', id, updates);
 
-    res.json(data);
+    res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -299,14 +286,10 @@ router.patch('/priests/:id', verifyAdmin, async (req, res) => {
 // Delete priest
 router.delete('/priests/:id', verifyAdmin, async (req, res) => {
   try {
-    const { id } = req.params;
+    const db = await getDb();
+    const id = parseInt(req.params.id);
 
-    const { error } = await supabase
-      .from('priests')
-      .delete()
-      .eq('id', id);
-
-    if (error) throw error;
+    await db.collection('priests').deleteOne({ id });
 
     await logAdminActivity(req.admin.id, 'delete', 'priest', id, {});
 
@@ -323,6 +306,7 @@ router.delete('/priests/:id', verifyAdmin, async (req, res) => {
 // Bulk update bookings
 router.post('/bookings/bulk-update', verifyAdmin, async (req, res) => {
   try {
+    const db = await getDb();
     const { bookingIds, action } = req.body;
 
     if (!bookingIds || bookingIds.length === 0) {
@@ -335,13 +319,10 @@ router.post('/bookings/bulk-update', verifyAdmin, async (req, res) => {
     else if (action === 'complete') status = 'Completed';
     else return res.status(400).json({ error: 'Invalid action' });
 
-    const { data, error } = await supabase
-      .from('bookings')
-      .update({ status, updated_at: new Date().toISOString() })
-      .in('id', bookingIds)
-      .select();
-
-    if (error) throw error;
+    const result = await db.collection('bookings').updateMany(
+      { id: { $in: bookingIds } },
+      { $set: { status, updated_at: new Date().toISOString() } }
+    );
 
     await logAdminActivity(req.admin.id, 'bulk_update', 'booking', null, {
       action,
@@ -349,7 +330,7 @@ router.post('/bookings/bulk-update', verifyAdmin, async (req, res) => {
       bookingIds
     });
 
-    res.json({ success: true, count: data.length });
+    res.json({ success: true, count: result.modifiedCount });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -362,22 +343,34 @@ router.post('/bookings/bulk-update', verifyAdmin, async (req, res) => {
 // Get admin activity logs
 router.get('/logs', verifyAdmin, async (req, res) => {
   try {
+    const db = await getDb();
     const { limit = 100, offset = 0, admin_id, action } = req.query;
 
-    let query = supabase
-      .from('admin_logs')
-      .select('*, admin_users(name, email)')
-      .order('created_at', { ascending: false })
-      .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
+    const filter = {};
+    if (admin_id) filter.admin_id = admin_id;
+    if (action) filter.action = action;
 
-    if (admin_id) query = query.eq('admin_id', admin_id);
-    if (action) query = query.eq('action', action);
+    const logs = await db.collection('admin_logs')
+      .find(filter)
+      .sort({ created_at: -1 })
+      .skip(parseInt(offset))
+      .limit(parseInt(limit))
+      .toArray();
 
-    const { data, error } = await query;
+    // Manually join admin name/email
+    const adminIds = [...new Set(logs.map(l => l.admin_id))];
+    const admins = await db.collection('admin_users').find({ id: { $in: adminIds } }).toArray();
+    const adminMap = {};
+    admins.forEach(a => { adminMap[a.id] = a; });
 
-    if (error) throw error;
+    const result = logs.map(l => ({
+      ...l,
+      admin_users: adminMap[l.admin_id]
+        ? { name: adminMap[l.admin_id].name, email: adminMap[l.admin_id].email }
+        : null
+    }));
 
-    res.json(data);
+    res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -390,24 +383,28 @@ router.get('/logs', verifyAdmin, async (req, res) => {
 // Verify booking by ID
 router.get('/verify/:bookingId', verifyAdmin, async (req, res) => {
   try {
+    const db = await getDb();
     const { bookingId } = req.params;
 
-    const { data: booking, error } = await supabase
-      .from('bookings')
-      .select('*, services(name, category, duration)')
-      .eq('id', bookingId)
-      .single();
+    const booking = await db.collection('bookings').findOne({ id: bookingId });
 
-    if (error || !booking) {
+    if (!booking) {
       return res.status(404).json({ error: 'Booking not found' });
     }
+
+    const service = await db.collection('services').findOne({ id: booking.service_id });
 
     // Check if booking is for today
     const today = new Date().toISOString().split('T')[0];
     const isValidDate = booking.booking_date === today;
 
     res.json({
-      booking,
+      booking: {
+        ...booking,
+        services: service
+          ? { name: service.name, category: service.category, duration: service.duration }
+          : null
+      },
       verification: {
         valid: booking.status === 'Confirmed' && isValidDate,
         status: booking.status,
@@ -434,32 +431,37 @@ router.get('/verify/:bookingId', verifyAdmin, async (req, res) => {
 // Generate revenue report
 router.get('/reports/revenue', verifyAdmin, async (req, res) => {
   try {
+    const db = await getDb();
     const { start_date, end_date } = req.query;
 
-    let query = supabase
-      .from('bookings')
-      .select('amount, status, booking_date, services(name)')
-      .in('status', ['Confirmed', 'Completed']);
+    const filter = { status: { $in: ['Confirmed', 'Completed'] } };
+    if (start_date) filter.booking_date = { ...filter.booking_date, $gte: start_date };
+    if (end_date) filter.booking_date = { ...filter.booking_date, $lte: end_date };
 
-    if (start_date) query = query.gte('booking_date', start_date);
-    if (end_date) query = query.lte('booking_date', end_date);
+    const bookings = await db.collection('bookings').find(filter).toArray();
 
-    const { data, error } = await query;
+    const serviceIds = [...new Set(bookings.map(b => b.service_id))];
+    const services = await db.collection('services').find({ id: { $in: serviceIds } }).toArray();
+    const serviceMap = {};
+    services.forEach(s => { serviceMap[s.id] = s.name; });
 
-    if (error) throw error;
-
-    const totalRevenue = data.reduce((sum, b) => sum + parseFloat(b.amount), 0);
+    const totalRevenue = bookings.reduce((sum, b) => sum + parseFloat(b.amount), 0);
     const byService = {};
-    data.forEach(b => {
-      const name = b.services?.name || 'Unknown';
+    bookings.forEach(b => {
+      const name = serviceMap[b.service_id] || 'Unknown';
       byService[name] = (byService[name] || 0) + parseFloat(b.amount);
     });
 
+    const bookingsWithService = bookings.map(b => ({
+      ...b,
+      services: { name: serviceMap[b.service_id] || 'Unknown' }
+    }));
+
     res.json({
-      totalBookings: data.length,
+      totalBookings: bookings.length,
       totalRevenue,
       byService,
-      bookings: data
+      bookings: bookingsWithService
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -469,30 +471,30 @@ router.get('/reports/revenue', verifyAdmin, async (req, res) => {
 // Generate priest service report
 router.get('/reports/priests', verifyAdmin, async (req, res) => {
   try {
+    const db = await getDb();
     const { start_date, end_date } = req.query;
 
-    let query = supabase
-      .from('bookings')
-      .select('priest, status, services(name)')
-      .neq('status', 'Cancelled');
+    const filter = { status: { $ne: 'Cancelled' } };
+    if (start_date) filter.booking_date = { ...filter.booking_date, $gte: start_date };
+    if (end_date) filter.booking_date = { ...filter.booking_date, $lte: end_date };
 
-    if (start_date) query = query.gte('booking_date', start_date);
-    if (end_date) query = query.lte('booking_date', end_date);
+    const bookings = await db.collection('bookings').find(filter).toArray();
 
-    const { data, error } = await query;
-
-    if (error) throw error;
+    const serviceIds = [...new Set(bookings.map(b => b.service_id))];
+    const services = await db.collection('services').find({ id: { $in: serviceIds } }).toArray();
+    const serviceMap = {};
+    services.forEach(s => { serviceMap[s.id] = s.name; });
 
     const byPriest = {};
-    data.forEach(b => {
+    bookings.forEach(b => {
       const name = b.priest || 'Unassigned';
       if (!byPriest[name]) byPriest[name] = { total: 0, services: {} };
       byPriest[name].total++;
-      const serviceName = b.services?.name || 'Unknown';
+      const serviceName = serviceMap[b.service_id] || 'Unknown';
       byPriest[name].services[serviceName] = (byPriest[name].services[serviceName] || 0) + 1;
     });
 
-    res.json({ byPriest, totalBookings: data.length });
+    res.json({ byPriest, totalBookings: bookings.length });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -509,12 +511,12 @@ router.get('/users', verifyAdmin, async (req, res) => {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
-    const { data, error } = await supabase
-      .from('admin_users')
-      .select('id, email, name, role, is_active, last_login, created_at')
-      .order('created_at', { ascending: false });
-
-    if (error) throw error;
+    const db = await getDb();
+    const data = await db.collection('admin_users')
+      .find({})
+      .project({ id: 1, email: 1, name: 1, role: 1, is_active: 1, last_login: 1, created_at: 1 })
+      .sort({ created_at: -1 })
+      .toArray();
 
     res.json(data);
   } catch (err) {
@@ -529,21 +531,28 @@ router.post('/users', verifyAdmin, async (req, res) => {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
+    const db = await getDb();
     const { email, password, name, role } = req.body;
 
     const password_hash = await bcrypt.hash(password, 10);
+    const id = await getNextSequence(db, 'admin_users');
 
-    const { data, error } = await supabase
-      .from('admin_users')
-      .insert({ email, password_hash, name, role: role || 'admin' })
-      .select('id, email, name, role, is_active, created_at')
-      .single();
+    const doc = {
+      id,
+      email,
+      password_hash,
+      name,
+      role: role || 'admin',
+      is_active: true,
+      created_at: new Date().toISOString()
+    };
 
-    if (error) throw error;
+    await db.collection('admin_users').insertOne(doc);
 
-    await logAdminActivity(req.admin.id, 'create_admin', 'admin', data.id, { email, name, role });
+    await logAdminActivity(req.admin.id, 'create_admin', 'admin', id, { email, name, role });
 
-    res.json(data);
+    const { password_hash: _, ...safeDoc } = doc;
+    res.json(safeDoc);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -555,15 +564,15 @@ router.post('/users', verifyAdmin, async (req, res) => {
 
 async function logAdminActivity(adminId, action, entityType, entityId, details) {
   try {
-    await supabase
-      .from('admin_logs')
-      .insert({
-        admin_id: adminId,
-        action,
-        entity_type: entityType,
-        entity_id: entityId,
-        details
-      });
+    const db = await getDb();
+    await db.collection('admin_logs').insertOne({
+      admin_id: adminId,
+      action,
+      entity_type: entityType,
+      entity_id: entityId,
+      details,
+      created_at: new Date().toISOString()
+    });
   } catch (err) {
     console.error('Failed to log admin activity:', err);
   }
